@@ -1,0 +1,339 @@
+Created on Mon Jun 10 13:52:20 2019
+
+@author: haowu
+"""
+#problem 1 a
+import os
+import sqlite3
+conn = sqlite3.connect('dsc450.db')
+os.getcwd()
+co = conn.cursor()
+
+co.execute("DROP TABLE tweet")
+co.execute("DROP TABLE user")
+co.execute("DROP TABLE geo")
+
+CTU = '''CREATE TABLE user
+(
+ id INTEGER,
+ name VARCHAR2(50),
+ screen_name VARCHAR2(50),
+ description VARCHAR2(200),
+ friends_count INTEGER
+); '''
+co.execute(CTU)
+
+CTG = '''CREATE TABLE geo
+(
+ gid VARCHAR2(50),
+ type VARCHAR2(50),
+ longitude FLOAT,
+ latitude FLOAT,
+ 
+ PRIMARY KEY(gid)
+); '''
+co.execute(CTG)
+
+PCS = '''CREATE TABLE tweet
+(
+ created_at VARCHAR2(50),
+ id_str INTEGER,
+ text VARCHAR2(200),
+ source VARCHAR2(100),
+ in_reply_to_user_id VARCHAR2(50),
+ in_reply_to_screen_name VARCHAR2(50),
+ in_reply_to_status_id VARCHAR2(50),
+ retweet_count INTEGER,
+ contributors VARCHAR2(50),
+ user_id INTEGER,
+ geo VARCHAR2(50),
+ gid VARCHAR2(50),
+ 
+ FOREIGN KEY(user_id)
+   REFERENCES user(id),
+ 
+ FOREIGN KEY(gid)
+   REFERENCES geo(gid)
+); '''
+co.execute(PCS)
+
+#problem 1 b
+import urllib
+import time
+
+start=time.time()
+webFD=urllib.request.urlopen ("http://rasinsrv07.cstcis.cti.depaul.edu/CSC455/OneDayOfTweets.txt")
+for i in range(1000000):
+    ln=webFD.readline()
+    f=open ('OneDayTweets.txt', 'ab')
+    f.write(ln)
+stop=time.time()
+print("Run time: "+str(stop-start))
+
+#problem 1 c
+import json
+
+start=time.time()
+webFD=urllib.request.urlopen ("http://rasinsrv07.cstcis.cti.depaul.edu/CSC455/OneDayOfTweets.txt")
+countFailed = 0
+for t in range(1000000):
+   try:
+      gid="geoid"+ str(t)
+      tweet=webFD.readline()
+      tdict = json.loads(tweet.decode('utf8'))
+      co.execute("INSERT OR IGNORE INTO user VALUES(?,?,?,?,?)", [tdict['user']['id'], tdict['user']['name'], tdict['user']['screen_name'], tdict['user']['description'], tdict['user']['friends_count']])
+      if tdict['geo']:
+         co.execute("INSERT OR IGNORE INTO geo VALUES(?,?,?,?)", [gid, tdict['geo']['type'], tdict['geo']['coordinates'][0], tdict['geo']['coordinates'][1]])
+         co.execute("INSERT OR IGNORE INTO tweet VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", [tdict['created_at'], tdict['id_str'], tdict['text'], tdict['source'], tdict['in_reply_to_user_id'], tdict['in_reply_to_screen_name'], tdict['in_reply_to_status_id'], tdict['retweet_count'], tdict['contributors'], tdict['user']['id'], tdict['geo']['type'], gid])
+      else:
+         co.execute("INSERT OR IGNORE INTO tweet VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", [tdict['created_at'], tdict['id_str'], tdict['text'], tdict['source'], tdict['in_reply_to_user_id'], tdict['in_reply_to_screen_name'], tdict['in_reply_to_status_id'], tdict['retweet_count'], tdict['contributors'], tdict['user']['id'], None, gid])
+   except ValueError:
+       countFailed += 1
+       continue
+       
+print(co.execute("SELECT COUNT(*) FROM user").fetchall())
+print(co.execute("SELECT COUNT(*) FROM geo").fetchall())
+print(co.execute("SELECT COUNT(*) FROM tweet").fetchall())
+stop=time.time()
+print("Run time: "+str(stop-start))
+
+#problem 1 d
+start=time.time()
+localFD=open ('OneDayTweets.txt', 'rb')
+countFailed = 0
+for x in range(1000000):
+   try:
+      gid="geoid"+ str(x)
+      tweet=localFD.readline()
+      tdict = json.loads(tweet.decode('utf8'))
+      co.execute("INSERT OR IGNORE INTO user VALUES(?,?,?,?,?)", [tdict['user']['id'], tdict['user']['name'], tdict['user']['screen_name'], tdict['user']['description'], tdict['user']['friends_count']])
+      if tdict['geo']:
+         co.execute("INSERT OR IGNORE INTO geo VALUES(?,?,?,?)", [gid, tdict['geo']['type'], tdict['geo']['coordinates'][0], tdict['geo']['coordinates'][1]])
+         co.execute("INSERT OR IGNORE INTO tweet VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", [tdict['created_at'], tdict['id_str'], tdict['text'], tdict['source'], tdict['in_reply_to_user_id'], tdict['in_reply_to_screen_name'], tdict['in_reply_to_status_id'], tdict['retweet_count'], tdict['contributors'], tdict['user']['id'], tdict['geo']['type'], gid])
+      else:
+         co.execute("INSERT OR IGNORE INTO tweet VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", [tdict['created_at'], tdict['id_str'], tdict['text'], tdict['source'], tdict['in_reply_to_user_id'], tdict['in_reply_to_screen_name'], tdict['in_reply_to_status_id'], tdict['retweet_count'], tdict['contributors'], tdict['user']['id'], None, gid])
+   except ValueError:
+       countFailed += 1
+       continue
+       
+print(co.execute("SELECT COUNT(*) FROM user").fetchall())
+print(co.execute("SELECT COUNT(*) FROM geo").fetchall())
+print(co.execute("SELECT COUNT(*) FROM tweet").fetchall())
+stop=time.time()
+print("Run time: "+str(stop-start))
+
+#problem 1 e
+start=time.time()
+localFD=open ('OneDayTweets.txt', 'rb')
+countFailed=0
+tuser=[]
+tgeo=[]
+ttweet=[] 
+for x in range(1000000):
+      
+    try:
+      gid="geoid"+ str(x)
+      tweet=localFD.readline()
+      tdict = json.loads(tweet.decode('utf8'))
+      tuser.append([tdict['user']['id'], tdict['user']['name'], tdict['user']['screen_name'], tdict['user']['description'], tdict['user']['friends_count']])
+      if tdict['geo']:
+         tgeo.append([gid, tdict['geo']['type'], tdict['geo']['coordinates'][0], tdict['geo']['coordinates'][1]])
+         ttweet.append([tdict['created_at'], tdict['id_str'], tdict['text'], tdict['source'], tdict['in_reply_to_user_id'], tdict['in_reply_to_screen_name'], tdict['in_reply_to_status_id'], tdict['retweet_count'], tdict['contributors'], tdict['user']['id'], tdict['geo']['type'], gid])
+      else:
+         ttweet.append([tdict['created_at'], tdict['id_str'], tdict['text'], tdict['source'], tdict['in_reply_to_user_id'], tdict['in_reply_to_screen_name'], tdict['in_reply_to_status_id'], tdict['retweet_count'], tdict['contributors'], tdict['user']['id'], None, gid])
+    except ValueError:
+       countFailed += 1
+           
+    if (x + 1) % 1000 == 0:
+        co.executemany("INSERT OR IGNORE INTO user VALUES(?,?,?,?,?)", tuser)
+        co.executemany("INSERT OR IGNORE INTO geo VALUES(?,?,?,?)", tgeo)
+        co.executemany("INSERT OR IGNORE INTO tweet VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", ttweet)
+        tuser=[]
+        tgeo=[]
+        ttweet=[] 
+
+print(countFailed)     
+print(co.execute("SELECT COUNT(*) FROM user").fetchall())
+print(co.execute("SELECT COUNT(*) FROM geo").fetchall())
+print(co.execute("SELECT COUNT(*) FROM tweet").fetchall())
+stop=time.time()
+print("Run time: "+str(stop-start))
+
+#problem 2 a
+start=time.time()
+print(co.execute("SELECT count(id_str) FROM tweet WHERE id_str LIKE '%55%' OR '%88%'").fetchall())
+stop=time.time()
+print("Run time: "+str(stop-start))
+
+start=time.time()
+print(co.execute("SELECT COUNT(*) FROM (SELECT DISTINCT in_reply_to_user_id from tweet)").fetchall())
+stop=time.time()
+print("Run time: "+str(stop-start))
+
+start=time.time()
+print(co.execute("SELECT text FROM tweet WHERE LENGTH(text)=(SELECT MAX(LENGTH(text)) FROM tweet) OR LENGTH(text)=(SELECT MIN(LENGTH(text)) FROM tweet) OR LENGTH(text)=(SELECT AVG(LENGTH(text)) FROM tweet)").fetchall())
+stop=time.time()
+print("Run time: "+str(stop-start))
+
+start=time.time()
+print(co.execute("SELECT name, AVG(longitude), AVG(latitude) FROM tweet LEFT JOIN user ON (user_id=id) LEFT JOIN geo ON (geo.gid=tweet.gid) GROUP BY name").fetchall())
+stop=time.time()
+print("Run time: "+str(stop-start))
+
+start=time.time()
+print(co.execute("SELECT Gknown, Gunknown FROM (SELECT COUNT(*) AS Gknown from tweet WHERE geo IS NULL), (SELECT COUNT(*) AS Gunknown from tweet WHERE geo IS NOT NULL)").fetchall())
+stop=time.time()
+print("Run time: "+str(stop-start))
+
+start=time.time()
+for z in range(15):
+    print(co.execute("SELECT name, AVG(longitude), AVG(latitude) FROM tweet LEFT JOIN user ON (user_id=id) LEFT JOIN geo ON (geo.gid=tweet.gid) GROUP BY name").fetchall())
+stop=time.time()
+print("Run time: "+str(stop-start))
+
+#problem 2 b
+import json
+import urllib
+import time
+start=time.time()
+localFD=open ('OneDayTweets.txt', 'rb')
+for x in range(1000000):     
+    try:
+      tweet=localFD.readline()
+      tdict = json.loads(tweet.decode('utf8'))
+      if '55' in tdict['id_str'] or '88' in tdict['id_str']:
+          print(tdict['id_str'])
+    except ValueError:
+       countFailed += 1
+stop=time.time()
+print("Run time: "+str(stop-start))   
+
+start=time.time()
+localFD=open ('OneDayTweets.txt', 'rb')
+IRUI=[]
+for y in range(1000000):     
+    try:
+      tweet=localFD.readline()
+      tdict = json.loads(tweet.decode('utf8'))
+      if tdict['in_reply_to_user_id'] not in IRUI:
+          IRUI.append(tdict['in_reply_to_user_id'])
+    except ValueError:
+       countFailed += 1
+print(len(IRUI))
+stop=time.time()
+print("Run time: "+str(stop-start))  
+
+#Problem 3 a        
+start=time.time()
+def generateInsertStatements(tblName):
+    fd = open(tblName+'.txt', 'w', encoding="utf-8")
+
+    tblRows = co.execute('SELECT * FROM %s' % tblName)
+    i=0
+    for row in tblRows:
+        fd.write("INSERT INTO %s VALUES %s;\n" % (tblName, str(("id"+str(i),)+row)))
+        i+=1
+    
+    fd.close
+
+generateInsertStatements('user')
+stop=time.time()
+print("Run time: "+str(stop-start))  
+
+#Problem 3 b
+start=time.time()
+localFD=open ('OneDayTweets.txt', 'rb')
+fd = open('locuser.txt', 'w', encoding="utf-8")
+USER=()
+i=0
+for y in range(1000000):     
+    try:
+        tweet=localFD.readline()
+        tdict = json.loads(tweet.decode('utf8'))
+        USER+=((str("id"+str(i)), tdict['user']['id'], tdict['user']['name'], tdict['user']['screen_name'], tdict['user']['description'], tdict['user']['friends_count']))
+        fd.write("INSERT INTO %s VALUES %s;\n" % ('user', str(USER)))
+        i+=1
+        USER=()
+    except ValueError:
+        countFailed += 1
+fd.close
+stop=time.time()
+print("Run time: "+str(stop-start))  
+
+#Problem 4 a
+start=time.time()
+from math import radians, cos, sin, asin, sqrt
+def haversine(lon1, lat1, lon2, lat2):
+    """
+    Calculate the great circle distance between two points 
+    on the earth (specified in decimal degrees)
+    """
+    # convert decimal degrees to radians 
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+
+    # haversine formula 
+    dlon = lon2 - lon1 
+    dlat = lat2 - lat1 
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * asin(sqrt(a)) 
+    r = 3958.8 # Radius of earth in miles
+    return c * r
+
+localFD=open ('OneDayTweets.txt', 'rb')
+fd = open('geonew.txt', 'w', encoding="utf-8")
+for y in range(1000000):     
+    try:
+        tweet=localFD.readline()
+        tdict = json.loads(tweet.decode('utf8'))
+        if tdict['geo']:
+            gid="geoid"+ str(y)
+            distance=round(haversine(41.878668, -87.625555, tdict['geo']['coordinates'][0], tdict['geo']['coordinates'][1]), 4)
+            fd.write("{}|{}|{}|{}|{}\n".format(gid, str(distance), tdict['geo']['type'], tdict['geo']['coordinates'][0], tdict['geo']['coordinates'][1]))
+    except ValueError:
+        countFailed += 1
+fd.close
+stop=time.time()
+print("Run time: "+str(stop-start))  
+
+#Problem 4 b 
+start=time.time()
+localFD=open ('OneDayTweets.txt', 'rb')
+fd = open('tweetnew.txt', 'w', encoding="utf-8")
+for y in range(1000000):     
+    try:
+        tweet=localFD.readline()
+        tdict = json.loads(tweet.decode('utf8'))
+        gid="geoid"+ str(y)
+        if tdict['geo']:
+            fd.write("{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}\n".format(tdict['user']['name'], tdict['user']['screen_name'], tdict['created_at'], tdict['id_str'], tdict['text'], tdict['source'], tdict['in_reply_to_user_id'], tdict['in_reply_to_screen_name'], tdict['in_reply_to_status_id'], tdict['retweet_count'], tdict['contributors'], tdict['user']['id'], tdict['geo']['type'], gid))
+        else:
+            fd.write("{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}\n".format(tdict['user']['name'], tdict['user']['screen_name'], tdict['created_at'], tdict['id_str'], tdict['text'], tdict['source'], tdict['in_reply_to_user_id'], tdict['in_reply_to_screen_name'], tdict['in_reply_to_status_id'], tdict['retweet_count'], tdict['contributors'], tdict['user']['id'], None, gid))
+    except ValueError:
+        countFailed += 1
+fd.close
+stop=time.time()
+print("Run time: "+str(stop-start))  
+
+#Problem 4 c
+start=time.time()
+localFD=open ('OneDayTweets.txt', 'rb')
+fd = open('usernew.txt', 'w', encoding="utf-8")
+dic={}
+for t in range(1000000):
+    tweet=localFD.readline()
+    tdict = json.loads(tweet.decode('utf8'))
+    if tdict['user']['id'] not in dic:
+        dic[tdict['user']['id']] = [str("id"+str(t)), tdict['user']['id'], 1, tdict['user']['name'], tdict['user']['screen_name'], tdict['user']['description'], tdict['user']['friends_count']]
+    else:
+        dic[tdict['user']['id']][2] += 1        
+l = []
+a=0
+for k in dic:
+    if dic[k][2] > a:
+        l = [dic[k][3], dic[k][2]]
+        a = dic[k][2]
+    fd.write("{}|{}|{}|{}|{}|{}|{}\n".format(dic[k][0], dic[k][1], dic[k][2], dic[k][3], dic[k][4], dic[k][5], dic[k][6]))
+print(str(l))
+fd.close
+stop=time.time()
+print("Run time: "+str(stop-start))
